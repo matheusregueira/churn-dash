@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Churn Dashboard — Stone Barbacena</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+/* Header */
+.header {
+  background: #1a1d27;
+  border-bottom: 2px solid #00a868;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.header h1 { font-size: 18px; font-weight: 700; color: #00a868; }
+.header .sub { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+/* Abas de meses */
+.tabs-bar {
+  background: #161924;
+  border-bottom: 1px solid #1e2535;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  gap: 2px;
+}
+.tab {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab:hover { color: #94a3b8; }
+.tab.active { color: #00a868; border-bottom-color: #00a868; font-weight: 600; }
+.tab-novo {
+  padding: 8px 14px;
+  font-size: 20px;
+  color: #334155;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+  line-height: 1;
+}
+.tab-novo:hover { color: #64748b; }
+
+/* Botões */
+.btn {
+  background: #00a868;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.btn:hover { background: #008f58; }
+.btn-ghost {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+.btn-ghost:hover { background: #1e2535; color: #e2e8f0; }
+.btn-voltou {
+  background: rgba(0,168,104,0.1);
+  border: 1px solid rgba(0,168,104,0.25);
+  color: #00a868;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.btn-voltou:hover { background: rgba(0,168,104,0.2); }
+.btn-restaurar {
+  background: transparent;
+  border: 1px solid #2d3748;
+  color: #64748b;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+.btn-restaurar:hover { color: #94a3b8; border-color: #334155; }
+
+/* Upload */
+.upload-wrap { margin: 24px; cursor: pointer; display: block; }
+.upload-area {
+  border: 2px dashed #334155;
+  border-radius: 14px;
+  padding: 56px 40px;
+  text-align: center;
+  transition: all 0.2s;
+}
+.upload-area:hover, .upload-area.dragover {
+  border-color: #00a868;
+  background: rgba(0,168,104,0.04);
+}
+.upload-area .icon { font-size: 48px; margin-bottom: 12px; }
+.upload-area h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.upload-area p { color: #64748b; font-size: 13px; margin-bottom: 20px; }
+
+/* Cards */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 10px;
+  padding: 18px 24px 10px;
+}
+.card { background: #1a1d27; border-radius: 10px; padding: 14px 16px; border: 1px solid #1e2535; }
+.card .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 6px; }
+.card .val { font-size: 26px; font-weight: 700; line-height: 1; }
+.card .sub { font-size: 11px; color: #64748b; margin-top: 5px; }
+.c-churn .val { color: #f59e0b; }
+.c-pct .val   { color: #f59e0b; }
+.c-hunter .val { color: #818cf8; }
+.c-vv .val     { color: #34d399; }
+.c-nvv .val    { color: #f87171; }
+.c-va .val     { color: #fb923c; }
+.c-at .val     { color: #00a868; }
+
+/* Filtros */
+.filters {
+  display: flex;
+  gap: 8px;
+  padding: 4px 24px 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.fi {
+  background: #1a1d27;
+  border: 1px solid #2d3748;
+  color: #e2e8f0;
+  padding: 7px 11px;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+}
+.fi:focus { border-color: #00a868; }
+.fi option { background: #1a1d27; }
+#search { min-width: 200px; }
+.chk-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+  cursor: pointer;
+  user-select: none;
+}
+.chk-label input { accent-color: #00a868; }
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.count-lbl { font-size: 13px; color: #64748b; }
+
+/* Tabela */
+.tbl-wrap { padding: 0 24px 40px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: #161924;
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  border-bottom: 1px solid #1e2535;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+tbody tr { border-bottom: 1px solid #161924; transition: background 0.1s; }
+tbody tr:hover { background: #181c28; }
+td { padding: 9px 12px; vertical-align: middle; }
+td.nome { font-weight: 500; min-width: 140px; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.sc { font-family: monospace; font-size: 11px; color: #64748b; max-width: 150px; word-break: break-all; }
+td.tpv { text-align: right; font-family: monospace; color: #94a3b8; white-space: nowrap; }
+td.dt { font-size: 12px; color: #64748b; white-space: nowrap; }
+
+.dias { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+.d-alto { background: rgba(248,113,113,.12); color: #f87171; }
+.d-med  { background: rgba(251,146,60,.12);  color: #fb923c; }
+.d-leve { background: rgba(251,191,36,.12);  color: #fbbf24; }
+
+.rtag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 5px; background: #1e2535; color: #94a3b8; white-space: nowrap; }
+
+.rsel {
+  background: #161924;
+  border: 1px solid #2d3748;
+  color: #e2e8f0;
+  padding: 4px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+.rsel:focus { border-color: #00a868; }
+.rsel:disabled { opacity: 0.4; cursor: default; }
+
+.sbadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 106px;
+}
+.s-     { background: #1e2535; color: #64748b; border: 1px solid #2d3748; }
+.s-churn_hunter   { background: rgba(129,140,248,.12); color: #818cf8; border: 1px solid rgba(129,140,248,.25); }
+.s-vai_voltar     { background: rgba(52,211,153,.12);  color: #34d399; border: 1px solid rgba(52,211,153,.25); }
+.s-nao_vai_voltar { background: rgba(248,113,113,.12); color: #f87171; border: 1px solid rgba(248,113,113,.25); }
+.s-vai_atuar      { background: rgba(251,146,60,.12);  color: #fb923c; border: 1px solid rgba(251,146,60,.25); }
+.s-atuando        { background: rgba(0,168,104,.12);   color: #00a868; border: 1px solid rgba(0,168,104,.25); }
+
+.ssel {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.ssel option { background: #1a1d27; color: #e2e8f0; }
+.ssel:disabled { opacity: 0.5; cursor: default; }
+
+.obs-in {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  width: 100%;
+  outline: none;
+  min-width: 120px;
+}
+.obs-in:focus { border-color: #2d3748; background: #161924; color: #e2e8f0; }
+.obs-in::placeholder { color: #3d4f6b; }
+.obs-in:disabled { opacity: 0.35; }
+
+.empty { text-align: center; padding: 60px; color: #64748b; }
+.empty .icon { font-size: 40px; margin-bottom: 12px; }
+
+.date-edit {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed #334155;
+  color: #64748b;
+  font-size: 11px;
+  padding: 1px 4px;
+  outline: none;
+  cursor: pointer;
+  width: 120px;
+}
+.date-edit:focus { border-bottom-color: #00a868; color: #e2e8f0; }
+.date-edit::-webkit-calendar-picker-indicator { filter: invert(0.4); cursor: pointer; }
+
+/* View tabs (Churn / Churn Hunter) */
+.view-tabs {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 0;
+  border-bottom: 1px solid #1e2535;
+}
+.vtab {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.vtab:hover { color: #94a3b8; }
+.vtab.active-churn  { color: #f59e0b; border-bottom-color: #f59e0b; font-weight: 600; }
+.vtab.active-hunter { color: #818cf8; border-bottom-color: #818cf8; font-weight: 600; }
+
+/* Input de último contato na aba Hunter */
+.contato-in {
+  background: #161924;
+  border: 1px solid #2d3748;
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  outline: none;
+}
+.contato-in:focus { border-color: #818cf8; }
+.contato-in::-webkit-calendar-picker-indicator { filter: invert(0.4); }
+
+/* Base ativa */
+.bases-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 24px 14px;
+  flex-wrap: wrap;
+}
+.bases-row .lbl-bases {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  white-space: nowrap;
+}
+.base-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #1a1d27;
+  border: 1px solid #2d3748;
+  border-radius: 8px;
+  padding: 5px 10px;
+}
+.base-item label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+.base-in {
+  background: transparent;
+  border: none;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 700;
+  width: 60px;
+  outline: none;
+  text-align: center;
+}
+.base-in::placeholder { color: #334155; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div>
+    <h1>Churn Dashboard</h1>
+    <div class="sub">Stone Barbacena — gestão de churn por rota</div>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
+    <div style="display:flex;align-items:center;gap:5px;">
+      <span style="font-size:11px;color:#3d4f6b;">Atualizado:</span>
+      <input type="date" class="date-edit" id="data-atualizacao" onchange="updDataAtualizacao(this.value)" title="Data de atualização">
+    </div>
+    <button class="btn-ghost" onclick="abrirUpload()">Carregar Excel</button>
+  </div>
+</div>
+
+<!-- Abas de meses -->
+<div class="tabs-bar" id="tabs-bar" style="display:none;"></div>
+
+<!-- Input de arquivo (único, global) -->
+<input type="file" id="file-input" accept=".xlsx" style="display:none;">
+
+<!-- Tela de upload -->
+<div id="upload-screen">
+  <div class="upload-wrap" onclick="abrirUpload()" style="cursor:pointer;">
+    <div class="upload-area" id="drop-zone">
+      <div class="icon">📊</div>
+      <h2>Carregar planilha de Churn</h2>
+      <p>Arraste o .xlsx exportado da Stone ou clique para selecionar</p>
+      <span class="btn" style="pointer-events:none;">Selecionar arquivo</span>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dash-screen" style="display:none;">
+
+  <!-- Navegação de view -->
+  <div class="view-tabs">
+    <button class="vtab active-churn" id="vtab-churn" onclick="switchView('churn')">Churn</button>
+    <button class="vtab" id="vtab-hunter" onclick="switchView('hunter')">Churn Hunter</button>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <!-- Base ativa por rota -->
+  <div class="bases-row">
+    <span class="lbl-bases">Base ativa:</span>
+    <div class="base-item">
+      <label for="base-Centro">Centro</label>
+      <input class="base-in" id="base-Centro" type="number" min="0" placeholder="—"
+        oninput="updBase('Centro', this.value)">
+    </div>
+    <div class="base-item">
+      <label for="base-Sudeste">Sudeste</label>
+      <input class="base-in" id="base-Sudeste" type="number" min="0" placeholder="—"
+        oninput="updBase('Sudeste', this.value)">
+    </div>
+    <div class="base-item">
+      <label for="base-Norte">Norte</label>
+      <input class="base-in" id="base-Norte" type="number" min="0" placeholder="—"
+        oninput="updBase('Norte', this.value)">
+    </div>
+    <div class="base-item">
+      <label for="base-Oeste">Oeste</label>
+      <input class="base-in" id="base-Oeste" type="number" min="0" placeholder="—"
+        oninput="updBase('Oeste', this.value)">
+    </div>
+  </div>
+
+  <div class="filters">
+    <input type="text" class="fi" id="search" placeholder="Buscar cliente ou stonecode...">
+    <select class="fi" id="f-rota">
+      <option value="">Todas as rotas</option>
+      <option>Centro</option>
+      <option>Sudeste</option>
+      <option>Norte</option>
+      <option>Oeste</option>
+    </select>
+    <span id="status-filter-wrap">
+      <select class="fi" id="f-status">
+        <option value="ALL">Todos os status</option>
+        <option value="">Sem status</option>
+        <option value="churn_hunter">Churn Hunter</option>
+        <option value="vai_voltar">Vai Voltar</option>
+        <option value="nao_vai_voltar">Não Vai Voltar</option>
+        <option value="vai_atuar">Vai Atuar</option>
+        <option value="atuando">Atuando</option>
+      </select>
+    </span>
+    <label class="chk-label">
+      <input type="checkbox" id="ver-removidos"> Ver clientes removidos
+    </label>
+  </div>
+
+  <div class="toolbar">
+    <span class="count-lbl" id="count"></span>
+    <button class="btn-ghost" onclick="clearData()">Limpar dados salvos</button>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead id="thead">
+        <tr>
+          <th>Cliente</th>
+          <th>Stonecode</th>
+          <th>TPV Ant.</th>
+          <th>Últ. Transação</th>
+          <th>Dias sem</th>
+          <th>Rota Original</th>
+          <th>Rota Corrigida</th>
+          <th>Status</th>
+          <th>Observações</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div id="empty" class="empty" style="display:none;">
+      <div class="icon">🔍</div>
+      <p>Nenhum cliente encontrado</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script>
+const ROTAS = ['Centro','Sudeste','Norte','Oeste'];
+const SK = 'churn_stone_v2';
+
+const STATUS = {
+  '':               { label: 'Sem status',     cls: 's-' },
+  'churn_hunter':   { label: 'Churn Hunter',   cls: 's-churn_hunter' },
+  'vai_voltar':     { label: 'Vai Voltar',      cls: 's-vai_voltar' },
+  'nao_vai_voltar': { label: 'Não Vai Voltar', cls: 's-nao_vai_voltar' },
+  'vai_atuar':      { label: 'Vai Atuar',       cls: 's-vai_atuar' },
+  'atuando':        { label: 'Atuando',         cls: 's-atuando' },
+};
+
+const TODAY = new Date();
+
+let store    = { meses: {}, mesAtivo: null };
+let clients  = [];
+let viewAtiva = 'churn';
+
+// ── Storage ──────────────────────────────────────────
+function loadStore() {
+  try { store = JSON.parse(localStorage.getItem(SK) || '{"meses":{},"mesAtivo":null}'); }
+  catch { store = { meses: {}, mesAtivo: null }; }
+}
+function saveStore() { localStorage.setItem(SK, JSON.stringify(store)); }
+function cKey(c) { return c.stonecode || c.nome; }
+
+// ── Datas ─────────────────────────────────────────────
+function fromExcel(n) {
+  return (!n || isNaN(n)) ? null : new Date((n - 25569) * 86400000);
+}
+function fmtDate(v) {
+  if (!v) return '—';
+  const d = typeof v === 'string' ? new Date(v) : v;
+  return d.toLocaleDateString('pt-BR');
+}
+function diasSem(v) {
+  if (!v) return null;
+  const d = typeof v === 'string' ? new Date(v) : v;
+  return Math.floor((TODAY - d) / 86400000);
+}
+function mesFromDate(d) {
+  const month = d.toLocaleString('pt-BR', { month: 'long' });
+  const year  = d.getFullYear();
+  return {
+    key:   `${month}_${year}`,
+    label: `${month[0].toUpperCase()}${month.slice(1)} ${year}`,
+  };
+}
+
+// ── Extrair base ativa do Excel ───────────────────────
+
+// ── Proteção do upload ────────────────────────────────
+const SENHA_UPLOAD = 'Cnc321timbu!'; // ← troque aqui se quiser mudar a senha
+
+function abrirUpload() {
+  const senha = prompt('Senha para carregar Excel:');
+  if (senha === null) return; // cancelou
+  if (senha !== SENHA_UPLOAD) {
+    alert('Senha incorreta.');
+    return;
+  }
+  document.getElementById('file-input').click();
+}
+
+// ── Carregar Excel ────────────────────────────────────
+function loadXLSX(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+    const novos = [];
+    let mesInfo  = null;
+    const baseAtiva = null; // definido manualmente pelo usuário
+
+    ROTAS.forEach(rota => {
+      if (!wb.SheetNames.includes(rota)) return;
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[rota], { defval: '' });
+      rows.forEach(row => {
+        const nome = String(row['Cliente'] || '').trim();
+        if (!nome) return;
+
+        const sc     = String(row['Stonecode'] || '').trim();
+        const tpvAnt = parseFloat(row['TPV Adq. Mês Anterior']) || 0;
+        const ultRaw = row['Data Últ. Transação'];
+        const mesRaw = row['Mês'];
+
+        const dataUlt = typeof ultRaw === 'number' ? fromExcel(ultRaw)
+                       : ultRaw instanceof Date     ? ultRaw : null;
+
+        if (!mesInfo && mesRaw) {
+          const d = typeof mesRaw === 'number' ? fromExcel(mesRaw)
+                   : mesRaw instanceof Date    ? mesRaw : null;
+          if (d) mesInfo = mesFromDate(d);
+        }
+
+        novos.push({ nome, stonecode: sc, tpvAnt, rotaOriginal: rota,
+                     dataUlt: dataUlt ? dataUlt.toISOString() : null });
+      });
+    });
+
+    if (!mesInfo) mesInfo = mesFromDate(TODAY);
+    const mk = mesInfo.key;
+    const mesSalvo = store.meses[mk] || {};
+    const salvoClientes = mesSalvo.clientes || {};
+
+    clients = novos.map(c => {
+      const sv = salvoClientes[cKey(c)] || {};
+      return { ...c, status: sv.status||'', rotaCorr: sv.rotaCorr||'',
+               obs: sv.obs||'', excluido: sv.excluido||false, contato: sv.contato||'' };
+    });
+
+    // Persistir estrutura no store (preserva dados editáveis + salva dados base)
+    const clientesStore = {};
+    clients.forEach(c => {
+      clientesStore[cKey(c)] = {
+        status: c.status, rotaCorr: c.rotaCorr, obs: c.obs, excluido: c.excluido, contato: c.contato||'',
+        _nome: c.nome, _sc: c.stonecode, _tpvAnt: c.tpvAnt,
+        _dataUlt: c.dataUlt, _rotaOriginal: c.rotaOriginal,
+      };
+    });
+
+    store.meses[mk] = {
+      label: mesInfo.label,
+      atualizadoEm: new Date().toISOString(),
+      basesAtivas: baseAtiva ?? mesSalvo.basesAtivas ?? null,
+      totalOriginal: clients.length,
+      clientes: clientesStore,
+    };
+    store.mesAtivo = mk;
+    saveStore();
+    exibirDash();
+    renderAll();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Carregar mês salvo (sem Excel) ───────────────────
+function carregarMes(mk) {
+  const mes = store.meses[mk];
+  if (!mes) return;
+  store.mesAtivo = mk;
+  saveStore();
+  clients = Object.entries(mes.clientes).map(([k, sv]) => ({
+    nome:          sv._nome || k,
+    stonecode:     sv._sc || '',
+    tpvAnt:        sv._tpvAnt || 0,
+    dataUlt:       sv._dataUlt || null,
+    rotaOriginal:  sv._rotaOriginal || '',
+    status:        sv.status || '',
+    rotaCorr:      sv.rotaCorr || '',
+    obs:           sv.obs || '',
+    excluido:      sv.excluido || false,
+    contato:       sv.contato || '',
+  }));
+  exibirDash();
+  renderAll();
+}
+
+function exibirDash() {
+  document.getElementById('upload-screen').style.display  = 'none';
+  document.getElementById('dash-screen').style.display    = 'block';
+  document.getElementById('tabs-bar').style.display       = 'flex';
+  renderTabs();
+  atualizarTimestamp();
+  preencherInputsBases();
+}
+
+// ── Abas de meses ─────────────────────────────────────
+function renderTabs() {
+  const bar  = document.getElementById('tabs-bar');
+  const keys = Object.keys(store.meses);
+  bar.innerHTML = keys.map(mk =>
+    `<button class="tab${mk===store.mesAtivo?' active':''}" onclick="switchMes('${mk}')">${store.meses[mk].label}</button>`
+  ).join('') + `<button class="tab-novo" onclick="abrirUpload()" title="Carregar novo mês">＋</button>`;
+}
+
+function switchMes(mk) {
+  if (mk === store.mesAtivo) return;
+  carregarMes(mk);
+}
+
+function switchView(v) {
+  viewAtiva = v;
+  document.getElementById('vtab-churn').className  = 'vtab' + (v==='churn'  ? ' active-churn'  : '');
+  document.getElementById('vtab-hunter').className = 'vtab' + (v==='hunter' ? ' active-hunter' : '');
+  document.getElementById('status-filter-wrap').style.display = v === 'hunter' ? 'none' : '';
+  renderAll();
+}
+
+function updDataAtualizacao(val) {
+  const mk = store.mesAtivo;
+  if (!store.meses[mk] || !val) return;
+  store.meses[mk].atualizadoEm = val + 'T12:00:00.000Z';
+  saveStore();
+}
+
+function atualizarTimestamp() {
+  const mes   = store.meses[store.mesAtivo];
+  const input = document.getElementById('data-atualizacao');
+  if (!input || !mes?.atualizadoEm) return;
+  const d = new Date(mes.atualizadoEm);
+  // Formato YYYY-MM-DD exigido pelo input[type=date]
+  input.value = d.toISOString().split('T')[0];
+}
+
+// ── Cards ─────────────────────────────────────────────
+function renderCards() {
+  const fr   = document.getElementById('f-rota').value;
+  const mes  = store.meses[store.mesAtivo] || {};
+  const bases = mes.basesAtivas || {};
+
+  // Base ativa: da rota filtrada ou soma de todas
+  let base;
+  if (fr) {
+    base = bases[fr] ?? null;
+  } else {
+    const vals = Object.values(bases);
+    base = vals.length ? vals.reduce((a, b) => a + b, 0) : null;
+  }
+
+  // Clientes ativos considerando filtro de rota
+  const ativosGeral = clients.filter(c => !c.excluido);
+  const ativosFiltro = fr
+    ? ativosGeral.filter(c => (c.rotaCorr || c.rotaOriginal) === fr)
+    : ativosGeral;
+
+  const removidos = clients.filter(c => c.excluido).length;
+  const pct = (base && ativosFiltro.length !== undefined)
+    ? ((ativosFiltro.length / base) * 100).toFixed(1) : null;
+
+  const cnt = {};
+  Object.keys(STATUS).filter(Boolean).forEach(k => cnt[k] = 0);
+  ativosFiltro.forEach(c => { if (c.status) cnt[c.status] = (cnt[c.status]||0)+1; });
+
+  const baseLabel = base
+    ? `Base${fr ? ' '+fr : ''}: ${base}`
+    : 'Base não detectada';
+
+  document.getElementById('cards').innerHTML = `
+    <div class="card c-churn">
+      <div class="lbl">Churn Ativo${fr ? ' — '+fr : ''}</div>
+      <div class="val">${ativosFiltro.length}</div>
+      ${removidos ? `<div class="sub">${removidos} voltaram</div>` : '<div class="sub">–</div>'}
+    </div>
+    <div class="card c-pct">
+      <div class="lbl">% Churn</div>
+      <div class="val">${pct !== null ? pct+'%' : '—'}</div>
+      <div class="sub">${baseLabel}</div>
+    </div>
+    <div class="card c-hunter"><div class="lbl">Churn Hunter</div><div class="val">${cnt.churn_hunter}</div></div>
+    <div class="card c-vv"><div class="lbl">Vai Voltar</div><div class="val">${cnt.vai_voltar}</div></div>
+    <div class="card c-nvv"><div class="lbl">Não Vai Voltar</div><div class="val">${cnt.nao_vai_voltar}</div></div>
+    <div class="card c-va"><div class="lbl">Vai Atuar</div><div class="val">${cnt.vai_atuar}</div></div>
+    <div class="card c-at"><div class="lbl">Atuando</div><div class="val">${cnt.atuando}</div></div>
+  `;
+}
+
+// ── Tabela ────────────────────────────────────────────
+function renderTable() {
+  if (viewAtiva === 'hunter') { renderTableHunter(); return; }
+
+  // Restaurar thead padrão
+  document.getElementById('thead').innerHTML = `<tr>
+    <th>Cliente</th><th>Stonecode</th><th>TPV Ant.</th>
+    <th>Últ. Transação</th><th>Dias sem</th>
+    <th>Rota Original</th><th>Rota Corrigida</th>
+    <th>Status</th><th>Observações</th><th></th>
+  </tr>`;
+
+  const verRem = document.getElementById('ver-removidos').checked;
+  const q  = document.getElementById('search').value.toLowerCase();
+  const fr = document.getElementById('f-rota').value;
+  const fs = document.getElementById('f-status').value;
+
+  const filtered = clients.filter(c => {
+    if (verRem !== c.excluido) return false;
+    const rotaEf = c.rotaCorr || c.rotaOriginal;
+    if (fr && rotaEf !== fr) return false;
+    if (fs !== 'ALL' && c.status !== fs) return false;
+    if (q && !`${c.nome} ${c.stonecode}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('tbody');
+  document.getElementById('count').textContent =
+    `${filtered.length} cliente${filtered.length!==1?'s':''}${verRem?' removidos':''}`;
+  document.getElementById('empty').style.display = filtered.length ? 'none' : 'block';
+
+  if (!filtered.length) { tbody.innerHTML = ''; return; }
+
+  function diasTag(v) {
+    const n = diasSem(v);
+    if (n === null) return '<span style="color:#3d4f6b">—</span>';
+    const cls = n >= 60 ? 'd-alto' : n >= 30 ? 'd-med' : 'd-leve';
+    return `<span class="dias ${cls}">${n}d</span>`;
+  }
+  function fmtTPV(v) {
+    return v ? 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
+  }
+
+  tbody.innerHTML = filtered.map(c => {
+    const idx  = clients.indexOf(c);
+    const scfg = STATUS[c.status] || STATUS[''];
+    const dis  = c.excluido ? 'disabled' : '';
+    const acao = c.excluido
+      ? `<button class="btn-restaurar" onclick="restaurar(${idx})">Restaurar</button>`
+      : `<button class="btn-voltou" onclick="voltou(${idx})">✓ Voltou</button>`;
+
+    return `<tr style="${c.excluido?'opacity:.4':''}">
+      <td class="nome" title="${esc(c.nome)}">${esc(c.nome)}</td>
+      <td class="sc">${esc(c.stonecode)||'—'}</td>
+      <td class="tpv">${fmtTPV(c.tpvAnt)}</td>
+      <td class="dt">${fmtDate(c.dataUlt)}</td>
+      <td>${diasTag(c.dataUlt)}</td>
+      <td><span class="rtag">${c.rotaOriginal}</span></td>
+      <td>
+        <select class="rsel" ${dis} onchange="updRota(${idx},this.value)">
+          <option value="" ${!c.rotaCorr?'selected':''}>= Original</option>
+          ${ROTAS.map(r=>`<option value="${r}" ${c.rotaCorr===r?'selected':''}>${r}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <span class="sbadge ${scfg.cls}">
+          <select class="ssel" ${dis} onchange="updStatus(${idx},this.value)">
+            ${Object.entries(STATUS).map(([v,s])=>`<option value="${v}" ${c.status===v?'selected':''}>${s.label}</option>`).join('')}
+          </select>
+        </span>
+      </td>
+      <td>
+        <input class="obs-in" type="text" placeholder="Obs..." value="${esc(c.obs)}"
+          ${dis} onblur="updObs(${idx},this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()">
+      </td>
+      <td>${acao}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTableHunter() {
+  document.getElementById('thead').innerHTML = `<tr>
+    <th>Cliente</th><th>Stonecode</th><th>TPV Ant.</th>
+    <th>Rota Original</th><th>Rota Corrigida</th>
+    <th>Último Contato</th><th>Observações</th><th></th>
+  </tr>`;
+
+  const verRem = document.getElementById('ver-removidos').checked;
+  const q  = document.getElementById('search').value.toLowerCase();
+  const fr = document.getElementById('f-rota').value;
+
+  const filtered = clients.filter(c => {
+    if (verRem !== c.excluido) return false;
+    if (c.status !== 'churn_hunter') return false;
+    const rotaEf = c.rotaCorr || c.rotaOriginal;
+    if (fr && rotaEf !== fr) return false;
+    if (q && !`${c.nome} ${c.stonecode}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('tbody');
+  document.getElementById('count').textContent =
+    `${filtered.length} hunter${filtered.length!==1?'s':''}${verRem?' removidos':''}`;
+  document.getElementById('empty').style.display = filtered.length ? 'none' : 'block';
+
+  if (!filtered.length) { tbody.innerHTML = ''; return; }
+
+  function fmtTPV(v) {
+    return v ? 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—';
+  }
+
+  tbody.innerHTML = filtered.map(c => {
+    const idx = clients.indexOf(c);
+    const dis = c.excluido ? 'disabled' : '';
+    const acao = c.excluido
+      ? `<button class="btn-restaurar" onclick="restaurar(${idx})">Restaurar</button>`
+      : `<button class="btn-voltou" onclick="voltou(${idx})">✓ Voltou</button>`;
+
+    return `<tr style="${c.excluido?'opacity:.4':''}">
+      <td class="nome" title="${esc(c.nome)}">${esc(c.nome)}</td>
+      <td class="sc">${esc(c.stonecode)||'—'}</td>
+      <td class="tpv">${fmtTPV(c.tpvAnt)}</td>
+      <td><span class="rtag">${c.rotaOriginal}</span></td>
+      <td>
+        <select class="rsel" ${dis} onchange="updRota(${idx},this.value)">
+          <option value="" ${!c.rotaCorr?'selected':''}>= Original</option>
+          ${ROTAS.map(r=>`<option value="${r}" ${c.rotaCorr===r?'selected':''}>${r}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <input type="date" class="contato-in" value="${c.contato||''}" ${dis}
+          onchange="updContato(${idx},this.value)" title="Último contato">
+      </td>
+      <td>
+        <input class="obs-in" type="text" placeholder="Obs..." value="${esc(c.obs)}"
+          ${dis} onblur="updObs(${idx},this.value)"
+          onkeydown="if(event.key==='Enter')this.blur()">
+      </td>
+      <td>${acao}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAll() { renderCards(); renderTable(); }
+
+// ── Persistir cliente ─────────────────────────────────
+function persist(idx) {
+  const c  = clients[idx];
+  const mk = store.mesAtivo;
+  const k  = cKey(c);
+  if (!store.meses[mk]?.clientes) return;
+  Object.assign(store.meses[mk].clientes[k], {
+    status: c.status, rotaCorr: c.rotaCorr, obs: c.obs, excluido: c.excluido, contato: c.contato||'',
+  });
+  saveStore();
+}
+
+// ── Handlers ──────────────────────────────────────────
+function updBase(rota, val) {
+  const mk = store.mesAtivo;
+  if (!store.meses[mk]) return;
+  if (!store.meses[mk].basesAtivas) store.meses[mk].basesAtivas = {};
+  const n = parseInt(val);
+  if (n > 0) store.meses[mk].basesAtivas[rota] = n;
+  else delete store.meses[mk].basesAtivas[rota];
+  saveStore();
+  renderCards();
+}
+
+function preencherInputsBases() {
+  const mes = store.meses[store.mesAtivo] || {};
+  const bases = mes.basesAtivas || {};
+  ROTAS.forEach(r => {
+    const el = document.getElementById('base-' + r);
+    if (el) el.value = bases[r] || '';
+  });
+}
+
+function updStatus(idx, val) {
+  clients[idx].status = val;
+  persist(idx);
+  renderAll();
+}
+function updRota(idx, val) {
+  clients[idx].rotaCorr = val;
+  persist(idx);
+}
+function updObs(idx, val) {
+  clients[idx].obs = val;
+  persist(idx);
+}
+function updContato(idx, val) {
+  clients[idx].contato = val;
+  persist(idx);
+}
+function voltou(idx) {
+  const nome = clients[idx].nome;
+  if (!confirm(`"${nome}" voltou a transacionar?\nEle será removido do churn. Você pode restaurar depois em "Ver clientes removidos".`)) return;
+  clients[idx].excluido = true;
+  clients[idx].status   = 'atuando';
+  persist(idx);
+  renderAll();
+}
+function restaurar(idx) {
+  clients[idx].excluido = false;
+  persist(idx);
+  renderAll();
+}
+function clearData() {
+  if (!confirm('Isso vai apagar todos os dados salvos de todos os meses.\nTem certeza?')) return;
+  localStorage.removeItem(SK);
+  store = { meses: {}, mesAtivo: null };
+  clients = [];
+  document.getElementById('upload-screen').style.display = 'block';
+  document.getElementById('dash-screen').style.display   = 'none';
+  document.getElementById('tabs-bar').style.display      = 'none';
+  document.getElementById('tabs-bar').innerHTML          = '';
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ──────────────────────────────────────────────
+loadStore();
+if (store.mesAtivo && store.meses[store.mesAtivo]) carregarMes(store.mesAtivo);
+
+document.getElementById('file-input').addEventListener('change', e => {
+  if (e.target.files[0]) loadXLSX(e.target.files[0]);
+  e.target.value = '';
+});
+
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f?.name.endsWith('.xlsx')) loadXLSX(f);
+});
+
+document.getElementById('search').addEventListener('input', renderTable);
+document.getElementById('f-rota').addEventListener('change', renderAll);
+document.getElementById('f-status').addEventListener('change', renderTable);
+document.getElementById('ver-removidos').addEventListener('change', renderTable);
+</script>
+</body>
+</html>

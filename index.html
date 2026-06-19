@@ -584,13 +584,21 @@ function agendarSalvar() {
   saveTimeout = setTimeout(salvarNoGitHub, 2000);
 }
 
-function configurarToken() {
+async function configurarToken() {
   const atual = getToken();
-  const novo  = prompt('Token do GitHub para sincronização (ghp_...):\n\nGere em: github.com → Settings → Developer settings → Personal access tokens → Fine-grained', atual);
+  const novo  = prompt('Token do GitHub para sincronização (ghp_...):\n\nGere em: github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)', atual);
   if (novo === null) return;
-  if (novo.trim()) {
-    localStorage.setItem('churn_github_token', novo.trim());
-    salvarNoGitHub();
+  if (!novo.trim()) return;
+  localStorage.setItem('churn_github_token', novo.trim());
+
+  const temDadosLocais = store.mesAtivo && Object.keys(store.meses).length > 0;
+  if (temDadosLocais) {
+    // Tem dados no PC — sobe pro GitHub imediatamente
+    await salvarNoGitHub();
+  } else {
+    // Sem dados locais — tenta baixar do GitHub
+    const ok = await carregarDoGitHub();
+    if (ok && store.mesAtivo && store.meses[store.mesAtivo]) carregarMes(store.mesAtivo);
   }
 }
 
@@ -1088,13 +1096,17 @@ function esc(s) {
 
 // ── Init ──────────────────────────────────────────────
 loadStore();
-// Tenta carregar do GitHub; se não tiver token, usa o cache local
 (async () => {
-  const sincronizou = await carregarDoGitHub();
-  if (!sincronizou) {
-    // sem token ou sem internet — usa localStorage
+  const temDadosLocais = store.mesAtivo && Object.keys(store.meses).length > 0;
+  if (temDadosLocais) {
+    // Tem dados locais — exibe logo e sobe pro GitHub em background
+    carregarMes(store.mesAtivo);
+    salvarNoGitHub();
+  } else {
+    // Sem dados locais — tenta buscar do GitHub
+    const ok = await carregarDoGitHub();
+    if (ok && store.mesAtivo && store.meses[store.mesAtivo]) carregarMes(store.mesAtivo);
   }
-  if (store.mesAtivo && store.meses[store.mesAtivo]) carregarMes(store.mesAtivo);
 })();
 
 document.getElementById('file-input').addEventListener('change', e => {

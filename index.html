@@ -386,6 +386,8 @@ td.dt { font-size: 12px; color: #64748b; white-space: nowrap; }
       <span style="font-size:11px;color:#3d4f6b;">Atualizado:</span>
       <input type="date" class="date-edit" id="data-atualizacao" onchange="updDataAtualizacao(this.value)" title="Data de atualização">
     </div>
+    <span id="sync-status" style="font-size:11px;color:#64748b;"></span>
+    <button class="btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="configurarToken()" title="Configurar token GitHub para sincronização">⚙ Sync</button>
     <button class="btn-ghost" onclick="abrirUpload()">Carregar Excel</button>
   </div>
 </div>
@@ -506,8 +508,10 @@ td.dt { font-size: 12px; color: #64748b; white-space: nowrap; }
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 <script>
-const ROTAS = ['Centro','Sudeste','Norte','Oeste'];
-const SK = 'churn_stone_v2';
+const ROTAS    = ['Centro','Sudeste','Norte','Oeste'];
+const SK       = 'churn_stone_v2';
+const REPO_RAW = 'https://raw.githubusercontent.com/matheusregueira/churn-dash/main/dados.json';
+const REPO_API = 'https://api.github.com/repos/matheusregueira/churn-dash/contents/dados.json';
 
 const STATUS = {
   '':               { label: 'Sem status',     cls: 's-' },
@@ -525,11 +529,76 @@ let clients  = [];
 let viewAtiva = 'churn';
 
 // ── Storage ──────────────────────────────────────────
+// ── GitHub Sync ───────────────────────────────────────
+let saveTimeout = null;
+
+function getToken() {
+  return localStorage.getItem('churn_github_token') || localStorage.getItem('ton_github_token') || '';
+}
+
+function statusSync(estado) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  if (estado === 'salvando') { el.textContent = '⟳ Salvando...'; el.style.color = '#64748b'; }
+  else if (estado === 'salvo')   { el.textContent = '✓ Salvo';        el.style.color = '#00a868'; setTimeout(() => { if(el.textContent==='✓ Salvo') el.textContent=''; }, 3000); }
+  else if (estado === 'erro')    { el.textContent = '✗ Erro sync';    el.style.color = '#f87171'; }
+  else { el.textContent = ''; }
+}
+
+async function carregarDoGitHub() {
+  if (!getToken()) return false;
+  try {
+    const r = await fetch(REPO_RAW + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return false;
+    const dados = await r.json();
+    if (!dados.meses) return false;
+    store = dados;
+    localStorage.setItem(SK, JSON.stringify(store));
+    return true;
+  } catch { return false; }
+}
+
+async function salvarNoGitHub() {
+  const token = getToken();
+  if (!token) return;
+  statusSync('salvando');
+  try {
+    const getR = await fetch(REPO_API, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github.v3+json' }
+    });
+    const atual = getR.ok ? await getR.json() : null;
+    const sha   = atual?.sha;
+    const body  = { message: 'churn: atualiza dados', content: btoa(unescape(encodeURIComponent(JSON.stringify(store)))) };
+    if (sha) body.sha = sha;
+    const putR = await fetch(REPO_API, {
+      method: 'PUT',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/vnd.github.v3+json' },
+      body: JSON.stringify(body)
+    });
+    statusSync(putR.ok ? 'salvo' : 'erro');
+  } catch { statusSync('erro'); }
+}
+
+function agendarSalvar() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(salvarNoGitHub, 2000);
+}
+
+function configurarToken() {
+  const atual = getToken();
+  const novo  = prompt('Token do GitHub para sincronização (ghp_...):\n\nGere em: github.com → Settings → Developer settings → Personal access tokens → Fine-grained', atual);
+  if (novo === null) return;
+  if (novo.trim()) {
+    localStorage.setItem('churn_github_token', novo.trim());
+    salvarNoGitHub();
+  }
+}
+
 function loadStore() {
   try { store = JSON.parse(localStorage.getItem(SK) || '{"meses":{},"mesAtivo":null}'); }
   catch { store = { meses: {}, mesAtivo: null }; }
 }
-function saveStore() { localStorage.setItem(SK, JSON.stringify(store)); }
+function saveStore() { localStorage.setItem(SK, JSON.stringify(store)); agendarSalvar(); }
 function cKey(c) { return c.stonecode || c.nome; }
 
 // ── Datas ─────────────────────────────────────────────
@@ -1019,7 +1088,14 @@ function esc(s) {
 
 // ── Init ──────────────────────────────────────────────
 loadStore();
-if (store.mesAtivo && store.meses[store.mesAtivo]) carregarMes(store.mesAtivo);
+// Tenta carregar do GitHub; se não tiver token, usa o cache local
+(async () => {
+  const sincronizou = await carregarDoGitHub();
+  if (!sincronizou) {
+    // sem token ou sem internet — usa localStorage
+  }
+  if (store.mesAtivo && store.meses[store.mesAtivo]) carregarMes(store.mesAtivo);
+})();
 
 document.getElementById('file-input').addEventListener('change', e => {
   if (e.target.files[0]) loadXLSX(e.target.files[0]);

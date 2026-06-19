@@ -387,7 +387,6 @@ td.dt { font-size: 12px; color: #64748b; white-space: nowrap; }
       <input type="date" class="date-edit" id="data-atualizacao" onchange="updDataAtualizacao(this.value)" title="Data de atualização">
     </div>
     <span id="sync-status" style="font-size:11px;color:#64748b;"></span>
-    <button class="btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="configurarToken()" title="Configurar token GitHub para sincronização">⚙ Sync</button>
     <button class="btn-ghost" onclick="abrirUpload()">Carregar Excel</button>
   </div>
 </div>
@@ -512,6 +511,7 @@ const ROTAS    = ['Centro','Sudeste','Norte','Oeste'];
 const SK       = 'churn_stone_v2';
 const REPO_RAW = 'https://raw.githubusercontent.com/matheusregueira/churn-dash/main/dados.json';
 const REPO_API = 'https://api.github.com/repos/matheusregueira/churn-dash/contents/dados.json';
+const GH_TOKEN = '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';
 
 const STATUS = {
   '':               { label: 'Sem status',     cls: 's-' },
@@ -532,9 +532,7 @@ let viewAtiva = 'churn';
 // ── GitHub Sync ───────────────────────────────────────
 let saveTimeout = null;
 
-function getToken() {
-  return localStorage.getItem('churn_github_token') || localStorage.getItem('ton_github_token') || '';
-}
+function getToken() { return GH_TOKEN; }
 
 function statusSync(estado) {
   const el = document.getElementById('sync-status');

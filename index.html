@@ -575,8 +575,17 @@ async function salvarNoGitHub() {
       headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', Accept: 'application/vnd.github.v3+json' },
       body: JSON.stringify(body)
     });
-    statusSync(putR.ok ? 'salvo' : 'erro');
-  } catch { statusSync('erro'); }
+    if (putR.ok) {
+      statusSync('salvo');
+    } else {
+      const errJson = await putR.json().catch(() => ({}));
+      statusSync('erro');
+      console.error('GitHub sync erro:', putR.status, errJson.message || '');
+      if (putR.status === 401 || putR.status === 403) {
+        alert('Erro de autenticação (' + putR.status + ').\n\nO token não tem permissão para este repositório.\n\nCrie um novo token em github.com → Settings → Developer settings → Personal access tokens → Tokens (classic) com a permissão "repo" marcada.');
+      }
+    }
+  } catch (e) { statusSync('erro'); console.error('GitHub sync exception:', e); }
 }
 
 function agendarSalvar() {

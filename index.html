@@ -471,7 +471,12 @@ td.dt { font-size: 12px; color: #64748b; white-space: nowrap; }
 
   <div class="toolbar">
     <span class="count-lbl" id="count"></span>
-    <button class="btn-ghost" onclick="clearData()">Limpar dados salvos</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn-ghost" onclick="exportarDados()" title="Exporta os dados para usar em outro dispositivo">Exportar dados</button>
+      <button class="btn-ghost" onclick="document.getElementById('json-input').click()" title="Importa dados exportados de outro dispositivo">Importar dados</button>
+      <input type="file" id="json-input" accept=".json" style="display:none;">
+      <button class="btn-ghost" onclick="clearData()">Limpar dados</button>
+    </div>
   </div>
 
   <div class="tbl-wrap">
@@ -966,6 +971,37 @@ function restaurar(idx) {
   persist(idx);
   renderAll();
 }
+function exportarDados() {
+  const mes = store.meses[store.mesAtivo];
+  const nome = mes ? mes.label.toLowerCase().replace(/\s+/g, '-') : 'backup';
+  const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `churn-dados-${nome}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importarDados(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const dados = JSON.parse(e.target.result);
+      if (!dados.meses) throw new Error();
+      store = dados;
+      saveStore();
+      if (store.mesAtivo && store.meses[store.mesAtivo]) {
+        carregarMes(store.mesAtivo);
+      }
+      alert('Dados importados! Tudo sincronizado.');
+    } catch {
+      alert('Arquivo inválido. Use apenas backups exportados pelo Churn Dashboard.');
+    }
+  };
+  reader.readAsText(file);
+}
+
 function clearData() {
   if (!confirm('Isso vai apagar todos os dados salvos de todos os meses.\nTem certeza?')) return;
   localStorage.removeItem(SK);
@@ -987,6 +1023,11 @@ if (store.mesAtivo && store.meses[store.mesAtivo]) carregarMes(store.mesAtivo);
 
 document.getElementById('file-input').addEventListener('change', e => {
   if (e.target.files[0]) loadXLSX(e.target.files[0]);
+  e.target.value = '';
+});
+
+document.getElementById('json-input').addEventListener('change', e => {
+  if (e.target.files[0]) importarDados(e.target.files[0]);
   e.target.value = '';
 });
 

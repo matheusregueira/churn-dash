@@ -371,6 +371,38 @@ td.dt { font-size: 12px; color: #64748b; white-space: nowrap; }
   text-align: center;
 }
 .base-in::placeholder { color: #334155; }
+
+/* Modal senha */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-box {
+  background: #1a1d27;
+  border: 1px solid #2d3748;
+  border-radius: 12px;
+  padding: 24px;
+  width: 280px;
+}
+.modal-box h3 { font-size: 15px; margin-bottom: 14px; }
+.modal-box input {
+  width: 100%;
+  background: #161924;
+  border: 1px solid #2d3748;
+  color: #e2e8f0;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+  margin-bottom: 14px;
+}
+.modal-box input:focus { border-color: #00a868; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
 </style>
 </head>
 <body>
@@ -396,6 +428,18 @@ td.dt { font-size: 12px; color: #64748b; white-space: nowrap; }
 
 <!-- Input de arquivo (único, global) -->
 <input type="file" id="file-input" accept=".xlsx" style="display:none;">
+
+<!-- Modal senha upload -->
+<div class="modal-overlay" id="senha-modal">
+  <div class="modal-box">
+    <h3>Senha para carregar Excel</h3>
+    <input type="password" id="senha-input" placeholder="Senha" autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="fecharSenhaModal()">Cancelar</button>
+      <button class="btn" onclick="confirmarSenha()">Confirmar</button>
+    </div>
+  </div>
+</div>
 
 <!-- Tela de upload -->
 <div id="upload-screen">
@@ -616,6 +660,24 @@ function loadStore() {
 function saveStore() { localStorage.setItem(SK, JSON.stringify(store)); agendarSalvar(); }
 function cKey(c) { return c.stonecode || c.nome; }
 
+// Remove linhas de rodapé "Filtros aplicados..." que o Excel da Stone
+// coloca no fim de cada aba de rota e que ficaram salvas como se fossem clientes.
+function limparFantasmas() {
+  let mudou = false;
+  for (const mk in store.meses) {
+    const clientes = store.meses[mk].clientes || {};
+    for (const k in clientes) {
+      if (String(clientes[k]._nome || '').toLowerCase().startsWith('filtros aplicados')) {
+        delete clientes[k];
+        mudou = true;
+      }
+    }
+    store.meses[mk].totalOriginal = Object.keys(clientes).length;
+  }
+  if (mudou) saveStore();
+  return mudou;
+}
+
 // ── Datas ─────────────────────────────────────────────
 function fromExcel(n) {
   return (!n || isNaN(n)) ? null : new Date((n - 25569) * 86400000);
@@ -645,12 +707,23 @@ function mesFromDate(d) {
 const SENHA_UPLOAD = 'Cnc321timbu!'; // ← troque aqui se quiser mudar a senha
 
 function abrirUpload() {
-  const senha = prompt('Senha para carregar Excel:');
-  if (senha === null) return; // cancelou
+  const input = document.getElementById('senha-input');
+  input.value = '';
+  document.getElementById('senha-modal').style.display = 'flex';
+  setTimeout(() => input.focus(), 50);
+}
+
+function fecharSenhaModal() {
+  document.getElementById('senha-modal').style.display = 'none';
+}
+
+function confirmarSenha() {
+  const senha = document.getElementById('senha-input').value;
   if (senha !== SENHA_UPLOAD) {
     alert('Senha incorreta.');
     return;
   }
+  fecharSenhaModal();
   document.getElementById('file-input').click();
 }
 
@@ -669,6 +742,7 @@ function loadXLSX(file) {
       rows.forEach(row => {
         const nome = String(row['Cliente'] || '').trim();
         if (!nome) return;
+        if (nome.toLowerCase().startsWith('filtros aplicados')) return; // linha de rodapé do relatório, não é cliente
 
         const sc     = String(row['Stonecode'] || '').trim();
         const tpvAnt = parseFloat(row['TPV Adq. Mês Anterior']) || 0;
@@ -1074,6 +1148,7 @@ function importarDados(file) {
       const dados = JSON.parse(e.target.result);
       if (!dados.meses) throw new Error();
       store = dados;
+      limparFantasmas();
       saveStore();
       if (store.mesAtivo && store.meses[store.mesAtivo]) {
         carregarMes(store.mesAtivo);
@@ -1103,6 +1178,7 @@ function esc(s) {
 
 // ── Init ──────────────────────────────────────────────
 loadStore();
+limparFantasmas();
 (async () => {
   const temDadosLocais = store.mesAtivo && Object.keys(store.meses).length > 0;
   if (temDadosLocais) {
@@ -1112,6 +1188,7 @@ loadStore();
   } else {
     // Sem dados locais — tenta buscar do GitHub
     const ok = await carregarDoGitHub();
+    if (ok) limparFantasmas();
     if (ok && store.mesAtivo && store.meses[store.mesAtivo]) carregarMes(store.mesAtivo);
   }
 })();
@@ -1133,6 +1210,11 @@ dz.addEventListener('drop', e => {
   e.preventDefault(); dz.classList.remove('dragover');
   const f = e.dataTransfer.files[0];
   if (f?.name.endsWith('.xlsx')) loadXLSX(f);
+});
+
+document.getElementById('senha-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmarSenha();
+  if (e.key === 'Escape') fecharSenhaModal();
 });
 
 document.getElementById('search').addEventListener('input', renderTable);

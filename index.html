@@ -316,6 +316,38 @@ td.dt { font-size: 12px; color: #64748b; white-space: nowrap; }
 .vtab:hover { color: #94a3b8; }
 .vtab.active-churn  { color: #f59e0b; border-bottom-color: #f59e0b; font-weight: 600; }
 .vtab.active-hunter { color: #818cf8; border-bottom-color: #818cf8; font-weight: 600; }
+.vtab.active-resumo { color: #00a868; border-bottom-color: #00a868; font-weight: 600; }
+
+/* Resumo p/ print */
+.resumo-wrap { padding: 30px 24px 50px; max-width: 720px; }
+.resumo-header { margin-bottom: 24px; }
+.resumo-header h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.resumo-header .sub { font-size: 12px; color: #64748b; }
+
+.resumo-total {
+  background: #1a1d27;
+  border: 1px solid #1e2535;
+  border-radius: 14px;
+  padding: 22px 28px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.resumo-total .num { font-size: 42px; font-weight: 700; color: #f59e0b; line-height: 1; }
+.resumo-total .lbl { font-size: 14px; color: #94a3b8; margin-left: 10px; }
+.resumo-total .pct-block { margin-left: auto; text-align: right; }
+.resumo-total .pct { font-size: 22px; font-weight: 700; color: #f59e0b; }
+.resumo-total .pct-lbl { font-size: 11px; color: #64748b; }
+
+.resumo-row { display: flex; align-items: center; gap: 14px; padding: 13px 0; border-bottom: 1px solid #1e2535; }
+.resumo-row:last-child { border-bottom: none; }
+.resumo-label { width: 80px; font-size: 14px; font-weight: 600; color: #e2e8f0; flex-shrink: 0; }
+.resumo-bar-wrap { flex: 1; background: #1e2535; border-radius: 6px; height: 24px; overflow: hidden; }
+.resumo-bar { height: 100%; background: #f59e0b; border-radius: 6px; }
+.resumo-value { width: 140px; text-align: right; font-size: 15px; font-weight: 700; color: #e2e8f0; flex-shrink: 0; }
+.resumo-value .pct { font-size: 12px; font-weight: 500; color: #64748b; margin-left: 4px; }
+.resumo-value .base { display: block; font-size: 10px; font-weight: 400; color: #3d4f6b; margin-top: 1px; }
 
 /* Input de último contato na aba Hunter */
 .contato-in {
@@ -460,6 +492,7 @@ td.dt { font-size: 12px; color: #64748b; white-space: nowrap; }
   <div class="view-tabs">
     <button class="vtab active-churn" id="vtab-churn" onclick="switchView('churn')">Churn</button>
     <button class="vtab" id="vtab-hunter" onclick="switchView('hunter')">Churn Hunter</button>
+    <button class="vtab" id="vtab-resumo" onclick="switchView('resumo')">Resumo p/ Print</button>
   </div>
 
   <div class="cards" id="cards"></div>
@@ -547,6 +580,8 @@ td.dt { font-size: 12px; color: #64748b; white-space: nowrap; }
       <p>Nenhum cliente encontrado</p>
     </div>
   </div>
+
+  <div class="resumo-wrap" id="resumo-screen" style="display:none;"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
@@ -848,7 +883,17 @@ function switchView(v) {
   viewAtiva = v;
   document.getElementById('vtab-churn').className  = 'vtab' + (v==='churn'  ? ' active-churn'  : '');
   document.getElementById('vtab-hunter').className = 'vtab' + (v==='hunter' ? ' active-hunter' : '');
+  document.getElementById('vtab-resumo').className = 'vtab' + (v==='resumo' ? ' active-resumo' : '');
   document.getElementById('status-filter-wrap').style.display = v === 'hunter' ? 'none' : '';
+
+  const isResumo = v === 'resumo';
+  document.getElementById('cards').style.display        = isResumo ? 'none' : '';
+  document.querySelector('.bases-row').style.display     = isResumo ? 'none' : '';
+  document.querySelector('.filters').style.display       = isResumo ? 'none' : '';
+  document.querySelector('.toolbar').style.display       = isResumo ? 'none' : '';
+  document.querySelector('.tbl-wrap').style.display      = isResumo ? 'none' : '';
+  document.getElementById('resumo-screen').style.display = isResumo ? 'block' : 'none';
+
   renderAll();
 }
 
@@ -1064,7 +1109,56 @@ function renderTableHunter() {
   }).join('');
 }
 
-function renderAll() { renderCards(); renderTable(); }
+// ── Resumo p/ print ───────────────────────────────────
+function renderResumo() {
+  const mes   = store.meses[store.mesAtivo] || {};
+  const bases = mes.basesAtivas || {};
+  const ativosGeral = clients.filter(c => !c.excluido);
+
+  const porRota = ROTAS.map(rota => {
+    const count = ativosGeral.filter(c => (c.rotaCorr || c.rotaOriginal) === rota).length;
+    const base  = bases[rota] ?? null;
+    const pct   = base ? (count / base * 100) : null;
+    return { rota, count, base, pct };
+  });
+
+  const totalCount = porRota.reduce((a, r) => a + r.count, 0);
+  const totalBase  = porRota.reduce((a, r) => a + (r.base || 0), 0);
+  const totalPct   = totalBase ? (totalCount / totalBase * 100) : null;
+  const max        = Math.max(1, ...porRota.map(r => r.count));
+
+  const atualizado = mes.atualizadoEm ? new Date(mes.atualizadoEm).toLocaleDateString('pt-BR') : '—';
+
+  document.getElementById('resumo-screen').innerHTML = `
+    <div class="resumo-header">
+      <h2>Churn por Rota — ${esc(mes.label || '')}</h2>
+      <div class="sub">Atualizado em ${atualizado}</div>
+    </div>
+    <div class="resumo-total">
+      <span class="num">${totalCount}</span>
+      <span class="lbl">clientes em churn na franquia</span>
+      <div class="pct-block">
+        <span class="pct">${totalPct !== null ? totalPct.toFixed(1) + '%' : '—'}</span>
+        <span class="pct-lbl">% churn total</span>
+      </div>
+    </div>
+    ${porRota.map(r => `
+      <div class="resumo-row">
+        <div class="resumo-label">${esc(r.rota)}</div>
+        <div class="resumo-bar-wrap"><div class="resumo-bar" style="width:${(r.count / max * 100).toFixed(1)}%"></div></div>
+        <div class="resumo-value">
+          ${r.count}<span class="pct">${r.pct !== null ? ' (' + r.pct.toFixed(1) + '%)' : ''}</span>
+          <span class="base">${r.base ? 'base ' + r.base : 'sem base cadastrada'}</span>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function renderAll() {
+  renderCards();
+  if (viewAtiva === 'resumo') renderResumo(); else renderTable();
+}
 
 // ── Persistir cliente ─────────────────────────────────
 function persist(idx) {

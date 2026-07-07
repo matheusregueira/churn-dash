@@ -1276,14 +1276,14 @@ limparFantasmas();
 (async () => {
   const temDadosLocais = store.mesAtivo && Object.keys(store.meses).length > 0;
   if (temDadosLocais) {
-    // Tem dados locais — exibe logo e sobe pro GitHub em background
+    // Mostra os dados locais na hora pra não deixar a tela em branco enquanto busca a versão mais nova
     carregarMes(store.mesAtivo);
-    salvarNoGitHub();
-  } else {
-    // Sem dados locais — tenta buscar do GitHub
-    const ok = await carregarDoGitHub();
-    if (ok) limparFantasmas();
-    if (ok && store.mesAtivo && store.meses[store.mesAtivo]) carregarMes(store.mesAtivo);
+  }
+  // Sempre busca a versão mais recente do GitHub — é a fonte compartilhada entre todo mundo
+  const ok = await carregarDoGitHub();
+  if (ok) {
+    limparFantasmas();
+    if (store.mesAtivo && store.meses[store.mesAtivo]) carregarMes(store.mesAtivo);
   }
 })();
 
